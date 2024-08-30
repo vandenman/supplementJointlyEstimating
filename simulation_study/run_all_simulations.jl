@@ -1,6 +1,7 @@
 include("../utilities.jl")
 
 test_run = true
+
 log_message("Running simulations with test_run = $test_run")
 
 no_threads_to_use = get_no_threads_to_use()

@@ -1,5 +1,7 @@
 include("../utilities.jl")
 
+test_run = true
+
 # this needs to be adjusted manually to whereever the data is stored
 data_dir = "/home/don/hdd/surfdrive/Shared/GIN/"
 
@@ -8,7 +10,6 @@ if !isdir(data_dir) || isempty(readdir(data_dir))
     !isinteractive() && exit(1)
 end
 
-test_run = true
 log_message("Running data analyses with test_run = $test_run")
 
 no_threads_to_use = get_no_threads_to_use()
