@@ -509,6 +509,19 @@ function run_simulation(results_dir, runs_dir, overwrite::Bool = false, test_run
     end
 
     if test_run
+
+        log_message("Running test run simulation")
+
+        ps = (20, )
+        ns = (50, )
+        ks = (50, )
+        μs = (0, 50, 100, ) # percentage of data-based μs to use
+        reps = 1
+        n_iter   = 200
+        n_warmup = 100
+
+    else
+
         log_message("Running full simulation")
 
         ps = (40, )
@@ -518,17 +531,6 @@ function run_simulation(results_dir, runs_dir, overwrite::Bool = false, test_run
         reps = 5
         n_iter   = 5_000
         n_warmup = 3_000
-
-    else
-        log_message("Running test run simulation")
-
-        ps = (40, )
-        ns = (50, 100)
-        ks = (50, )
-        μs = (0, 10, 30, 50, 100, ) # percentage of data-based μs to use
-        reps = 1
-        n_iter   = 1_000
-        n_warmup = 1_000
 
     end
 
@@ -799,6 +801,12 @@ function main(
 
     log_message("Starting Multilevel vs. Individual vs. Aggregated simulation study")
 
+    if test_run
+        !endswith("test", results_dir) && (results_dir *= "_test")
+        !endswith("test", runs_dir   ) && (runs_dir    *= "_test")
+        !endswith("test", figures_dir) && (figures_dir *= "_test")
+    end
+
     !isdir(results_dir) && mkdir(results_dir)
     !isdir(runs_dir)    && mkdir(runs_dir)
     !isdir(figures_dir) && mkdir(figures_dir)
@@ -810,4 +818,4 @@ function main(
 
 end
 
-main(runs_dir = "/home/don/hdd/postdoc/multilevel_vs_individual_vs_aggregated/runs_dir", test_run = false)
+main()

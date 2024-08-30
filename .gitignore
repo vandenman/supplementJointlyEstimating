@@ -4,3 +4,10 @@
 /simulation_study/multilevel_vs_individual_vs_aggregated_results
 /simulation_study/roc_figures
 /simulation_study/multilevel_vs_individual_vs_aggregated_figures0
+/simulation_study/roc_data
+/simulation_study/roc_data_test
+.Rproj.user
+/simulation_study/multilevel_vs_individual_vs_aggregated_figures_test
+/simulation_study/multilevel_vs_individual_vs_aggregated_results_test
+/data_analyses/fits_test
+/simulation_study/roc_figures_test

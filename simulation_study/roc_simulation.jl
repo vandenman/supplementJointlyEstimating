@@ -36,9 +36,9 @@ function compute_auc_individual_group(invidivual_Gmat, expected_Gvec)
 
     xgrid = sort!(unique!(vcat(ci_fpr[1, :], ci_fpr[2, :])))
 
-    # TODO: remove warnings, they are harmless
-    itp_lower = Interpolations.interpolate((ci_fpr[2, :],), ci_tpr[1, :], Interpolations.Gridded(Interpolations.Linear()))
-    itp_upper = Interpolations.interpolate((ci_fpr[1, :],), ci_tpr[2, :], Interpolations.Gridded(Interpolations.Linear()))
+    # deduplicate_knots! to remove harmless warnings, about duplicate knots
+    itp_lower = Interpolations.interpolate((Interpolations.deduplicate_knots!(ci_fpr[2, :]),), ci_tpr[1, :], Interpolations.Gridded(Interpolations.Linear()))
+    itp_upper = Interpolations.interpolate((Interpolations.deduplicate_knots!(ci_fpr[1, :]),), ci_tpr[2, :], Interpolations.Gridded(Interpolations.Linear()))
 
     lowerband = itp_lower[xgrid]
     upperband = itp_upper[xgrid]
@@ -174,10 +174,10 @@ function run_simulation(results_dir, overwrite::Bool = false, test_run::Bool = t
     )
 
     n           = 1000
-    p           = 60
-    k           = 100
-    n_iter      = test_run ? 1_000 : 10_000
-    n_warmup    = test_run ?   100 :  2_000
+    p           = test_run ?  30 :     60
+    k           = test_run ?  50 :    100
+    n_iter      = test_run ? 200 : 10_000
+    n_warmup    = test_run ? 100 :  2_000
 
     test_prefix = test_run ? "test_" : ""
     filename = joinpath(results_dir, "$(test_prefix)results.jld2")
@@ -206,6 +206,7 @@ function save_figures(simulation_results, figures_dir)
     titles = ("Low variance", "High variance", "Mixture")
 
     limits = (-0.05, 1.05, -0.05, 1.05)
+    # (i, (key, sim_res)) = first(enumerate(pairs(simulation_results)))
     for (i, (key, sim_res)) in enumerate(pairs(simulation_results))
 
         grid = auc_fig[1, i] = GridLayout()
@@ -260,10 +261,19 @@ function save_figures(simulation_results, figures_dir)
 
 end
 
-function main(;results_dir = joinpath(pwd(), "roc_data"), figures_dir = joinpath(pwd(), "roc_figures"), overwrite::Bool = false,
-    test_run::Bool = parse_test_run_args())
+function main(;
+    results_dir = joinpath(pwd(), "simulation_study", "roc_data"),
+    figures_dir = joinpath(pwd(), "simulation_study", "roc_figures"),
+    overwrite::Bool = false,
+    test_run::Bool = is_test_run()
+)
 
     log_message("Starting ROC simulation study")
+
+    if test_run
+        !endswith("test", results_dir) && (results_dir *= "_test")
+        !endswith("test", figures_dir) && (figures_dir *= "_test")
+    end
 
     !isdir(results_dir) && mkdir(results_dir)
     !isdir(figures_dir) && mkdir(figures_dir)
@@ -275,4 +285,4 @@ function main(;results_dir = joinpath(pwd(), "roc_data"), figures_dir = joinpath
 
 end
 
-main(; results_dir = "/home/don/hdd/postdoc/roc_simulation/", overwrite = true)
+main()

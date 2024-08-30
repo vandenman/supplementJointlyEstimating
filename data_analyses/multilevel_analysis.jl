@@ -2,33 +2,6 @@ using MultilevelGGMSampler
 import DelimitedFiles, StatsBase, JLD2, CodecZlib, Dates
 include("../utilities.jl")
 
-#region functions
-read_file(file) = DelimitedFiles.readdlm(file, '\t', Float64)
-
-function read_and_prepare_data(files::AbstractVector, p = nothing)
-
-
-    rawdata = read_file(first(files))
-    n = size(rawdata, 2)
-    p = size(rawdata, 1)
-    k = length(files)
-
-    sum_of_squares = Array{Float64, 3}(undef, p, p, k)
-    sum_of_squares[:, :, 1] = StatsBase.scattermat(rawdata[1:p, :]; dims=2)
-    for i in 2:length(files)
-        rawdata = read_file(files[i])[1:p, :]
-        if size(rawdata) != (p, n)
-            # file 494 has one more observation than the others... why?
-            # @show i, p, n
-            # @assert size(rawdata) == (p, n)
-        end
-        sum_of_squares[:, :, i] = StatsBase.scattermat(rawdata; dims=2)
-    end
-
-    return (; n, p, k, sum_of_squares)
-end
-#endregion
-
 function main(
         ;
         root_dir_files = "/home/don/hdd/surfdrive/Shared/GIN/",
@@ -36,40 +9,40 @@ function main(
         test_run::Bool = is_test_run()
     )
 
-    postfix = test_run ? "test" : "run"
-    filename = joinpath(results_dir, "$postfix.jld2")
+    test_run && !endswith(results_dir, "test") && (results_dir *= "_test")
+    !isdir(results_dir) && mkdir(results_dir)
+    @assert isdir(results_dir)
+
+    filename = joinpath(results_dir, "multilevel.jld2")
 
     if isfile(filename)
         log_message("Exiting multilevel analysis because the \"$filename\" already exists. Rename or delete it if you want to run the analysis again.")
         return nothing
     end
 
-    !isdir(results_dir) && mkdir(results_dir)
-    @assert isdir(results_dir)
     @assert isdir(root_dir_files)
     all_files = readdir(root_dir_files, join = true)
     @assert !isempty(all_files)
 
 
-
-    k        = length(all_files) # 724
-    p        = nothing           # nothing = all
-
-    if !test_run
-        n_iter   = 20_000 # 50_000
-        n_warmup = 15_000
-    else
+    if test_run
+        n        = 30
         n_iter   = 15
-        n_warmup = 5
+        n_warmup =  5
+    else
+        n        = length(all_files) # 724
+        n_iter   = 20_000
+        n_warmup = 15_000
     end
 
     log_message("Preparing data files")
 
-    selected_files = all_files[1:k]
-    data = read_and_prepare_data(selected_files, p)
-    (;n, p) = data
+    selected_files = all_files[1:n]
+    data = read_and_prepare_data(selected_files)
+    t = data.n
+    p = data.p
 
-    log_message("Starting multilevel analysis with t = $n, p = $p, n = $k, n_iter = $n_iter, n_warmup = $n_warmup")
+    log_message("Starting multilevel analysis with t = $t, p = $p, n = $n, n_iter = $n_iter, n_warmup = $n_warmup")
 
     individual_structure = SpikeAndSlabStructure(threaded = true, method = MultilevelGGMSampler.CholeskySampling(), inv_method = MultilevelGGMSampler.CG_Inv(), σ_spike = 0.05)
 
@@ -85,6 +58,7 @@ function main(
 
     log_message("Saving results to $filename")
 
+    # save every results element as a separate field in the JLD2 file, so they can be loaded individually
     JLD2.jldopen(filename, "w"; compress = true) do file
 
         for field in fieldnames(typeof(samples))
@@ -92,6 +66,7 @@ function main(
             value = getfield(samples, field)
             file[group_name] = value
         end
+        file["data"] = data
     end
 
     return nothing

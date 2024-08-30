@@ -1,4 +1,4 @@
-import CpuId, Dates
+import CpuId, Dates, DelimitedFiles, StatsBase
 
 function log_message(message)
     print("[")
@@ -33,11 +33,31 @@ function is_test_run()
         if '=' in arg
             key, value = split(arg, '=')
             if key == "test_run"
-                returnval = value != "true"
+                returnval = value != "false"
                 log_message("ARGS contains \"$arg\", continuing with $(returnval ? "test" : "real") run")
                 return returnval
             end
         end
     end
     return true
+end
+
+
+read_file(file) = DelimitedFiles.readdlm(file, '\t', Float64)
+
+function read_and_prepare_data(files::AbstractVector, p = nothing)
+
+    rawdata = read_file(first(files))
+    n = size(rawdata, 2)
+    p = size(rawdata, 1)
+    k = length(files)
+
+    sum_of_squares = Array{Float64, 3}(undef, p, p, k)
+    sum_of_squares[:, :, 1] = StatsBase.scattermat(rawdata[1:p, :]; dims=2)
+    for i in 2:length(files)
+        rawdata = read_file(files[i])[1:p, :]
+        sum_of_squares[:, :, i] = StatsBase.scattermat(rawdata; dims=2)
+    end
+
+    return (; n, p, k, sum_of_squares)
 end

@@ -16,38 +16,49 @@ no_threads_to_use = get_no_threads_to_use()
 
 log_message("Running data analyses with $no_threads_to_use threads")
 
-prefix = "julia --project=\".\" --threads=$(no_threads_to_use)"
-postfix = "test_run=$test_run"
+analysis_files = joinpath.(pwd(), "data_analyses", (
+    "multilevel_analysis.jl", "individual_analysis.jl", "aggregated_analysis.jl",
+    "preprocess_results_data_analyses.jl", "figures_data_analyses.jl"
+))
+
+if any(!(isfile), analysis_files)
+
+    missing_files = filter(!isfile, analysis_files)
+
+    error("""
+The following analysis script(s) were not found at these locations:
+
+$(join('\t' .* missing_files, "\n"))
+
+Please make sure that the working directory points to the root of the repository.
+You can print the output of `pwd()` in julia to see what it currently is.
+
+Right now the working directory is:
+
+$(pwd())
+
+""")
+
+    !isinteractive() && exit(1)
+end
+
+# get the path to the currently running julia instance
+path_julia_executable = joinpath(Sys.BINDIR, Base.julia_exename())
+
 cmds = (
-    multilevel = "$(prefix) $(joinpath("data_analyses", "multilevel_analysis.jl")) $postfix",
-    individual = "$(prefix) $(joinpath("data_analyses", "individual_analysis.jl")) $postfix",
-    aggregated = "$(prefix) $(joinpath("data_analyses", "aggregated_analysis.jl")) $postfix"
+    ("Multilevel analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[1]) test_run=$(test_run)`),
+    ("Individual analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[2]) test_run=$(test_run)`),
+    ("Aggregated analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[3]) test_run=$(test_run)`),
+    # ("Postprocessing",      `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[4]) test_run=$(test_run)`),
+    # ("Creating figures",    `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[5]) test_run=$(test_run)`)
 )
 
-for (name, cmd) in pairs(cmds)
-    log_message("Starting $name analysis")
+for (name, cmd) in cmds
+    log_message("Starting $(lowercase(name)) analysis")
     log_message("Running: $cmd")
     t0 = Dates.now()
-    # run(`$cmd`)
+    run(cmd)
     t1 = Dates.now()
-    log_message("$name analysis finished in $(t1 - t0)")
+    delta_t = Dates.canonicalize(t1 - t0)
+    log_message("$name analysis finished in $delta_t")
 end
-
-if test_run
-    log_message("Skipping postprocessing for test run")
-    exit()
-end
-
-log_message("Starting postprocessing")
-cmd = "$(prefix) $(joinpath("data_analyses", "preprocess_results_data_analyses.jl")) $postfix"
-log_message("Running: $cmd")
-t0 = Dates.now()
-run(`$cmd`)
-t1 = Dates.now()
-
-log_message("Creating figures")
-cmd = "$(prefix) $(joinpath("data_analyses", "figures_data_analyses.jl")) $postfix"
-log_message("Running: $cmd")
-t0 = Dates.now()
-run(`$cmd`)
-t1 = Dates.now()
