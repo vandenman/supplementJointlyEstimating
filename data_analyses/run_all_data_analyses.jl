@@ -49,16 +49,16 @@ cmds = (
     ("Multilevel analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[1]) test_run=$(test_run)`),
     ("Individual analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[2]) test_run=$(test_run)`),
     ("Aggregated analysis", `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[3]) test_run=$(test_run)`),
-    # ("Postprocessing",      `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[4]) test_run=$(test_run)`),
-    # ("Creating figures",    `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[5]) test_run=$(test_run)`)
+    ("Postprocessing",      `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[4]) test_run=$(test_run)`),
+    ("Creating figures",    `$(path_julia_executable) --project=$(pwd()) --threads=$(no_threads_to_use) $(analysis_files[5]) test_run=$(test_run)`)
 )
 
 for (name, cmd) in cmds
-    log_message("Starting $(lowercase(name)) analysis")
+    log_message("Starting $(lowercase(name))")
     log_message("Running: $cmd")
     t0 = Dates.now()
     run(cmd)
     t1 = Dates.now()
     delta_t = Dates.canonicalize(t1 - t0)
-    log_message("$name analysis finished in $delta_t")
+    log_message("$name finished in $delta_t")
 end

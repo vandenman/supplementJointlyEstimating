@@ -1,5 +1,5 @@
 using MultilevelGGMSampler
-import DelimitedFiles, StatsBase, JLD2, CodecZlib
+import JLD2, CodecZlib
 include("../utilities.jl")
 
 function main(

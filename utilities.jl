@@ -7,11 +7,6 @@ function log_message(message)
     println(message)
 end
 
-# function parse_test_run_args()
-#     isempty(ARGS) && return true
-#     return first(ARGS) == "test_run=true"
-# end
-
 function get_no_threads_to_use()
     no_physical_cores = CpuId.cpucores()
     no_threads        = CpuId.cputhreads()

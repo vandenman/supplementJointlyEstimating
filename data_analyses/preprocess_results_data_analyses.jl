@@ -50,29 +50,23 @@ function main(
     test_run::Bool = is_test_run()
 )
 
+    means_file              = joinpath(results_dir, "multilevel_means.jld2")
+    group_samples_file      = joinpath(results_dir, "multilevel_group_samples.jld2")
+    individual_samples_file = joinpath(results_dir, "multilevel_individual_samples.jld2")
+
+    if all(isfile, (means_file, group_samples_file, individual_samples_file))
+        log_message("Exiting early because the files \"$means_file\", \"$group_samples_file\", and \"$individual_samples_file\" already exist. Rename or delete them if you want to run the analysis again.")
+        return nothing
+    end
+
     test_run && !endswith(results_dir, "test") && (results_dir *= "_test")
     !isdir(results_dir) && error("Directory $results_dir does not exist. Run the multilevel analysis first.")
 
     obj_file = joinpath(results_dir, "multilevel.jld2")
     !isfile(obj_file) && error("File $obj_file does not exist. Run the multilevel analysis first.")
 
-    # G_samples_file = joinpath(results_dir, "G_samples_tril.jld2")
-    # if !isfile(G_samples_file)
-    #     let
-    #         file = JLD2.jldopen(obj_file)
-    #         samps = file["samples"]
-    #         indicator_samples_tril = samps.samples_G
-    #         JLD2.jldsave(
-    #             joinpath(results_dir, "G_samples_tril.jld2"), true;
-    #             indicator_samples_tril = indicator_samples_tril
-    #         )
-    #     end
-    # end
-
-    # JLD2.jldopen(obj_file)
-
-    means_file = joinpath(results_dir, "multilevel_means.jld2")
     means_obj  = get_posterior_means(obj_file, means_file)
+
 
     # sample posterior group samples
     no_group_samples = test_run ? 100 : 10_000
@@ -122,10 +116,9 @@ function main(
         ProgressMeter.next!(prog)
     end
 
-    filename = joinpath(pwd(), results_dir, "multilevel_group_samples.jld2")
-    log_message("Saving group-level information to $filename")
+    log_message("Saving group-level information to $group_samples_file")
 
-    JLD2.jldsave(filename, true;
+    JLD2.jldsave(group_samples_file, true;
         group_samples              = BitMatrix(group_samples),
         prior_group_samples        = BitMatrix(prior_group_samples),
         prior_edge_inclusion_probs = prior_edge_inclusion_probs,
@@ -140,10 +133,9 @@ function main(
     individual_graph_edge_probs        = means_obj.means_G
     individual_graph_thresholded_probs = individual_graph_edge_probs .> .5
 
-    filename = joinpath(pwd(), results_dir, "multilevel_individual_samples.jld2")
-    log_message("Saving group-level information to $filename")
+    log_message("Saving individual-level information to $individual_samples_file")
 
-    JLD2.jldsave(filename, true;
+    JLD2.jldsave(individual_samples_file, true;
         individual_graph_edge_probs        = individual_graph_edge_probs,
         individual_graph_thresholded_probs = individual_graph_thresholded_probs
     )

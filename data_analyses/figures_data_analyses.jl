@@ -9,7 +9,9 @@ import OrderedCollections
 import Graphs, NetworkLayout, GraphMakie
 
 # optional for interactive plots
- import WGLMakie, JSServe, Bonito
+import WGLMakie, JSServe, Bonito
+
+include("../utilities.jl")
 
 #region functions
 
@@ -319,6 +321,29 @@ function scale_fun(pt, mx)
     pt ./ 1.7
 end
 
+
+function retrieval_plot(observed, estimated, identified)
+    f = Figure()
+    ax = Axis(f[1, 1], title = Printf.@sprintf("Cor = %.3f", SB.cor(observed, estimated)))
+    retrieval_plot!(ax, observed, estimated, identified)
+    return f
+end
+function retrieval_plot!(ax::Makie.Axis, observed, estimated, identified)
+    scatter!(ax, observed[identified], estimated[identified]; color = :green)
+    scatter!(ax, observed[.!identified], estimated[.!identified]; color = :red)
+    ablines!(ax, 0, 1; color = :grey)
+end
+function retrieval_plot(observed, estimated)
+    f = Figure()
+    ax = Axis(f[1, 1], title = Printf.@sprintf("Cor = %.3f", SB.cor(observed, estimated)))
+    retrieval_plot!(ax, observed, estimated)
+    return f
+end
+function retrieval_plot!(ax::Makie.Axis, observed, estimated)
+    scatter!(ax, observed, estimated)
+    ablines!(ax, 0, 1; color = :grey)
+end
+
 #endregion
 
 function main(
@@ -543,7 +568,7 @@ Try rerunning `run_all_data_analyses.jl`.
     means_k_vec = vec(means_obj.means_K)
 
     fig_K_est_vs_K_obs = retrieval_plot(obs_k_vec, means_k_vec)
-    save_figs && save(joinpath(figures_dir, "K_est_vs_K_obs.png"), fig_K_est_vs_K_obs)
+    save(joinpath(figures_dir, "K_est_vs_K_obs.png"), fig_K_est_vs_K_obs)
 
     _, obs_partial_cors = precision_to_partial(obs_k_vals)
     _, est_partial_cors = precision_to_partial(means_obj.means_K)
@@ -661,15 +686,15 @@ Try rerunning `run_all_data_analyses.jl`.
     fig = Figure(size = (2000, 900), fontsize = color_scheme.fontsize, backgroundcolor = color_scheme.bg_col_fig)
     ax = Axis(fig[1, 1], title = "Evidence for Inclusion\nInclusion BF > 3", backgroundcolor = color_scheme.bg_col_ax)
     hidedecorations!(ax); hidespines!(ax)
-    network_plot!(ax, adj_above_3, color_scheme)
+    network_plot!(ax, adj_above_3, color_scheme, layout = layout2D_qgraph)
 
     ax = Axis(fig[1, 2], title = "Evidence for Exclusion\nInclusion BF < 1 / 3", backgroundcolor = color_scheme.bg_col_ax)
     hidedecorations!(ax); hidespines!(ax)
-    network_plot!(ax, adj_below_3, color_scheme)
+    network_plot!(ax, adj_below_3, color_scheme, layout = layout2D_qgraph)
 
     ax = Axis(fig[1, 3], title = "Insufficient Evidence\n1 / 3 ≤ Inclusion BF ≤ 3", backgroundcolor = color_scheme.bg_col_ax)
     hidedecorations!(ax); hidespines!(ax)
-    network_plot!(ax, adj_between_3, color_scheme)
+    network_plot!(ax, adj_between_3, color_scheme, layout = layout2D_qgraph)
 
     Legend(fig[1, 4], legend_elems, longnames_subnetworks, framevisible = false, nbanks = 1)
     fig
@@ -1224,155 +1249,10 @@ end
 
 Bonito.export_static(joinpath(figures_dir, "interactive_proportion_having_edge2.html"), app)
 
-
-# save_figs && open(joinpath(figdir, "interactive_proportion_having_edge.html"), "w") do io
-#     println(io, """
-#     <html>
-#         <head>
-#         </head>
-#         <body>
-#     """)
-#     JSServe.Page(exportable=true, offline=true)
-#     show(io, MIME"text/html"(), app)
-#     println(io, """
-#         </body>
-#     </html>
-#     """)
-# end
-
 CairoMakie.activate!(inline = true)
 
 #endregion
 
 end
 
-import PyCall
-igraph = PyCall.pyimport("igraph")
-partial_correlations, _ = precision_to_partial(means_obj.means_K)
-
-mean_edge_weights = MultilevelGGMSampler.tril_vec_to_sym(
-    vec(SB.mean(partial_correlations, dims = 2))
-)
-hist(tril_to_vec(mean_edge_weights, -1))
-
-
-adj_above_3_weighted = adj_above_3 .* mean_edge_weights
-py_ig_adj_above_3_weighted = igraph.Graph.Weighted_Adjacency(adj_above_3_weighted, mode = "undirected")
-py_ig_adj_above_3_unweighted = igraph.Graph.Weighted_Adjacency(adj_above_3,        mode = "undirected")
-
-hist(filter(!iszero, tril_to_vec(adj_above_3_weighted, -1)))
-
-
-# walktrap_weighted   = igraph.Graph.community_walktrap(py_ig_adj_above_3_weighted, steps = 4)
-# walktrap_unweighted = igraph.Graph.community_walktrap(py_ig_adj_above_3_unweighted, steps = 4)
-# membership_weighted = walktrap_weighted.as_clustering().membership
-# membership_unweighted = walktrap_unweighted.as_clustering().membership
-
-# membership_weighted = igraph.Graph.community_infomap(py_ig_adj_above_3_weighted).membership
-
-# membership_weighted = igraph.Graph.community_edge_betweenness(py_ig_adj_above_3_weighted).as_clustering().membership
-
-membership_weighted = igraph.Graph.community_edge_betweenness(py_ig_adj_above_3_weighted).as_clustering().membership
-
-membership = membership_weighted#membership_unweighted
-
-show(DF.DataFrame(
-    groupname = longnames_subnetworks[id_index_to_group],
-    wt_weighted_label  = membership::Vector{Int}#,
-    # wt_unweighted_label  = membership_unweighted::Vector{Int}
-), allrows = true)
-
-adj_above_3_weighted_tril = MultilevelGGMSampler.tril_to_vec(adj_above_3_weighted, -1)
-extremas = (-1, 1)#extrema(adj_above_3_weighted_tril)
-normalizer(x, minn, maxx) = (x - minn) / (maxx - minn)
-normalizer.(extremas, extremas...)
-
-adj_above_3_weighted_tril_norm = normalizer.(adj_above_3_weighted_tril, extremas...)
-edge_color_weighted = Colors.RGBA.(get(edge_color_scheme, adj_above_3_weighted_tril_norm), .!iszero.(adj_above_3_weighted_tril))
-
-markers_labels = [
-    (:circle, ":circle"),
-    (:rect, ":rect"),
-    (:diamond, ":diamond"),
-    (:hexagon, ":hexagon"),
-    (:cross, ":cross"),
-    (:xcross, ":xcross"),
-    (:utriangle, ":utriangle"),
-    (:dtriangle, ":dtriangle"),
-    (:ltriangle, ":ltriangle"),
-    (:rtriangle, ":rtriangle"),
-    (:pentagon, ":pentagon"),
-    (:star4, ":star4"),
-    (:star5, ":star5"),
-    (:star6, ":star6"),
-    (:star8, ":star8"),
-    (:vline, ":vline"),
-    (:hline, ":hline"),
-    ('a', "'a'"),
-    ('B', "'B'"),
-    ('↑', "'\\uparrow'"),
-    ('😄', "'\\:smile:'"),
-    ('✈', "'\\:airplane:'"),
-]
-
-node_markers = map(first, markers_labels[membership .+ 1])
-# node_markers = map(first, markers_labels[membership_unweighted .+ 1])
-
-
-legend_elems_clustering = [
-    MarkerElement(color = Colors.GrayA(.4, .8), marker = first(markers_labels[idx]), markersize = 15)
-    for idx in 1:1+maximum(membership)
-]
-cluster_counts = SB.countmap(membership)
-cluster_counts_str = [string(cluster_counts[idx]) for idx in 0:maximum(membership)]
-# cluster_counts_str = fill("", length(legend_elems_clustering)) # hide the counts
-
-map(first, markers_labels[membership .+ 1])
-
-w = 600
-fig = Figure(size = (w, w))
-ax = Axis(fig[1, 1])#, title = "hoi")
-hidedecorations!(ax); hidespines!(ax)
-network_plot!(ax, group_obj["graph_edge_probs"], color_scheme,
-    edge_color = edge_color_weighted,
-    layout = layout_spring_above_3_tweaked,
-    node_marker = node_markers
-)
-
-gl_legend = fig[1, 2] = GridLayout()
-Legend(gl_legend[1, 1:2], legend_elems, longnames_subnetworks, framevisible = false, nbanks = 1)
-Colorbar(gl_legend[2, 1], limits = (-1, 1), colormap = edge_color_scheme, vertical = true, label = "Partial correlation")
-Legend(gl_legend[2, 2], legend_elems_clustering, cluster_counts_str, "Cluster Counts", framevisible = false, nbanks = 1)
-colsize!(fig.layout, 1, Relative(3/5))
-fig
-
-save_figs && save(joinpath(figdir, "clustering_group_level.pdf"), fig)
-
-# for teaching with transparent background
-fig = Figure(size = (w, w), backgroundcolor=:transparent)
-ax = Axis(fig[1, 1], backgroundcolor=:transparent)#, title = "hoi")
-hidedecorations!(ax); hidespines!(ax)
-network_plot!(ax, group_obj["graph_edge_probs"], color_scheme,
-    edge_color = edge_color_weighted,
-    layout = layout_spring_above_3_tweaked,
-    node_marker = node_markers
-)
-gl_legend = fig[1, 2] = GridLayout()
-Legend(gl_legend[1, 1], legend_elems, longnames_subnetworks, framevisible = false, nbanks = 1)
-# Colorbar(gl_legend[2, 1], limits = (-1, 1), colormap = edge_color_scheme, vertical = true, label = "Partial correlation")
-Legend(gl_legend[2, 1], legend_elems_clustering, cluster_counts_str, "Cluster Counts", framevisible = false, nbanks = 1)
-# colsize!(fig.layout, 1, Relative(3/5))
-fig
-
-save_figs && save(joinpath(figdir, "clustering_group_level2.pdf"), fig)
-save_figs && save(joinpath(figdir, "clustering_group_level2.png"), fig)
-
-
-
-adj_above_3
-adj_graph_above_3 = Matrix(Graphs.adjacency_matrix(graph_above_3, weights = mean_edge_weights, steps = 10))
-graph_above_3
-
-
-
-#endregion
+main()

@@ -1,5 +1,5 @@
 using MultilevelGGMSampler
-import DelimitedFiles, StatsBase, JLD2, CodecZlib, LinearAlgebra
+import JLD2, CodecZlib, LinearAlgebra
 import ProgressMeter
 include("../utilities.jl")
 

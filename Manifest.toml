@@ -1092,7 +1092,9 @@ version = "1.2.1"
 
 [[deps.MultilevelGGMSampler]]
 deps = ["Distributions", "FastGaussQuadrature", "FillArrays", "Graphs", "HypergeometricFunctions", "IrrationalConstants", "Krylov", "LinearAlgebra", "LogExpFunctions", "LoopVectorization", "MLBase", "OnlineStatsBase", "Optim", "PDMats", "ProgressMeter", "Random", "SpecialFunctions", "StatsBase"]
-path = "../MultilevelGGMSampler.jl"
+git-tree-sha1 = "a087926f4fdbfc1335d99f2a6c40f468e600582c"
+repo-rev = "main"
+repo-url = "https://github.com/vandenman/MultilevelGGMSampler.jl"
 uuid = "d81081cc-1456-4ce9-94c0-3e22023ee38d"
 version = "0.1.0"
 
